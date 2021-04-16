@@ -1,0 +1,5 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <grid :columns="{{ columns|json_encode }}" :rows="{{ rows|json_encode }}"></grid>
+{% endblock %}
