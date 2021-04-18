@@ -62,7 +62,7 @@ class DefaultController extends AbstractController
             $filters = [
                 'start' => (int) $request->query->get('start', 0),
                 'length' => (int) $request->query->get('length', $defaultPageLength),
-                'search' => $request->query->get('search')['value'] ?? null,
+                'search' => trim($request->query->get('search')['value'] ?? ''),
                 'order' => $order,
             ];
 

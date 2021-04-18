@@ -7,7 +7,6 @@ namespace App\Repository;
 use App\Entity\Ip;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Query;
-use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -40,16 +39,19 @@ class IpRepository extends ServiceEntityRepository
         $filters = array_merge([
             'start' => 0,
             'length' => 10,
-            'search' => null,
+            'search' => '',
             'order' => [],
         ], $filters);
 
         $alias = 'i';
         $queryBuilder = $this->createQueryBuilder($alias);
 
-        if ($filters['search']) {
+        if (!empty($filters['search'])) {
             $expBuilder = $queryBuilder->expr();
             $queryBuilder->setParameter('search', sprintf('%%%s%%', $filters['search']));
+            $queryBuilder->leftJoin('i.dnsRecords', 'dr');
+            $queryBuilder->leftJoin('dr.record', 'r');
+            $queryBuilder->leftJoin('dr.name', 'n');
             $queryBuilder->where(
                 $expBuilder->orX(
                     $expBuilder->like('i.name', ':search'),
@@ -60,6 +62,8 @@ class IpRepository extends ServiceEntityRepository
                     $expBuilder->like('i.organization', ':search'),
                     $expBuilder->like('i.country', ':search'),
                     $expBuilder->like('i.asn', ':search'),
+                    $expBuilder->like('r.name', ':search'),
+                    $expBuilder->like('n.name', ':search'),
                 )
             );
         }
