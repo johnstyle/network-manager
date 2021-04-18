@@ -1,5 +1,14 @@
 {% extends 'base.html.twig' %}
 
 {% block body %}
-    <grid :columns="{{ columns|json_encode }}" :rows="{{ rows|json_encode }}"></grid>
+    <table data-columns="{{ columns|json_encode }}" data-page-length="{{ pageLength }}">
+        <thead>
+            <tr>
+                {% for column in columns %}
+                    <th>{{ column.text }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 {% endblock %}

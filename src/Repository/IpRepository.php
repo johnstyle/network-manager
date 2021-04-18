@@ -6,6 +6,8 @@ namespace App\Repository;
 
 use App\Entity\Ip;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Query;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -24,5 +26,50 @@ class IpRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Ip::class);
+    }
+
+    /**
+     * search
+     *
+     * @param array $filters
+     *
+     * @return Query
+     */
+    public function search(array $filters): Query
+    {
+        $filters = array_merge([
+            'start' => 0,
+            'length' => 10,
+            'search' => null,
+            'order' => [],
+        ], $filters);
+
+        $alias = 'i';
+        $queryBuilder = $this->createQueryBuilder($alias);
+
+        if ($filters['search']) {
+            $expBuilder = $queryBuilder->expr();
+            $queryBuilder->setParameter('search', sprintf('%%%s%%', $filters['search']));
+            $queryBuilder->where(
+                $expBuilder->orX(
+                    $expBuilder->like('i.name', ':search'),
+                    $expBuilder->like('i.type', ':search'),
+                    $expBuilder->like('i.category', ':search'),
+                    $expBuilder->like('i.route', ':search'),
+                    $expBuilder->like('i.registry', ':search'),
+                    $expBuilder->like('i.organization', ':search'),
+                    $expBuilder->like('i.country', ':search'),
+                    $expBuilder->like('i.asn', ':search'),
+                )
+            );
+        }
+
+        if (\count($filters['order'])) {
+            foreach ($filters['order'] as [ $sort, $order ]) {
+                $queryBuilder->addOrderBy(sprintf($sort, $alias), $order);
+            }
+        }
+
+        return $queryBuilder->getQuery();
     }
 }

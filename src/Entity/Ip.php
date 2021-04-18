@@ -21,8 +21,8 @@ class Ip implements UuidInterface, TimestampableInterface
     use UuidTrait;
     use TimestampableTrait;
 
-    public const TYPE_IPV4 = 'ipv4';
-    public const TYPE_IPV6 = 'ipv6';
+    public const PROCOTOL_IPV4 = 'ipv4';
+    public const PROCOTOL_IPV6 = 'ipv6';
 
     /**
      * @ORM\Column(type="string")
@@ -32,7 +32,7 @@ class Ip implements UuidInterface, TimestampableInterface
     /**
      * @ORM\Column(type="string")
      */
-    private ?string $type = self::TYPE_IPV4;
+    private ?string $protocol = self::PROCOTOL_IPV4;
 
     /**
      * @ORM\Column(type="string", nullable=true)
@@ -47,7 +47,7 @@ class Ip implements UuidInterface, TimestampableInterface
     /**
      * @ORM\Column(type="string", nullable=true)
      */
-    private ?string $source = null;
+    private ?string $registry = null;
 
     /**
      * @ORM\Column(type="string", nullable=true)
@@ -57,32 +57,32 @@ class Ip implements UuidInterface, TimestampableInterface
     /**
      * @ORM\Column(type="string", nullable=true)
      */
-    private ?string $networkName = null;
+    private ?string $organization = null;
+
+    /**
+     * @ORM\Column(type="integer", nullable=true)
+     */
+    private ?int $asn = null;
 
     /**
      * @ORM\Column(type="string", nullable=true)
      */
-    private ?string $networkHandle = null;
+    private ?string $type = null;
 
     /**
      * @ORM\Column(type="string", nullable=true)
      */
-    private ?string $organizationName = null;
-
-    /**
-     * @ORM\Column(type="string", nullable=true)
-     */
-    private ?string $organizationHandle = null;
-
-    /**
-     * @ORM\Column(type="string", nullable=true)
-     */
-    private ?string $asn = null;
+    private ?string $category = null;
 
     /**
      * @ORM\OneToMany(targetEntity="App\Entity\DnsRecord", mappedBy="record", cascade={"persist"})
      */
     private Collection $dnsRecords;
+
+    /**
+     * @ORM\Column(type="datetime", nullable=true)
+     */
+    private ?\DateTime $allocatedAt = null;
 
     /**
      * @ORM\Column(type="datetime", nullable=true)
@@ -127,25 +127,25 @@ class Ip implements UuidInterface, TimestampableInterface
     }
 
     /**
-     * getType
+     * getProtocol
      *
      * @return string|null
      */
-    public function getType(): ?string
+    public function getProtocol(): ?string
     {
-        return $this->type;
+        return $this->protocol;
     }
 
     /**
-     * setType
+     * setProtocol
      *
-     * @param string|null $type
+     * @param string|null $protocol
      *
      * @return $this
      */
-    public function setType(?string $type): self
+    public function setProtocol(?string $protocol): self
     {
-        $this->type = $type;
+        $this->protocol = $protocol;
 
         return $this;
     }
@@ -199,25 +199,25 @@ class Ip implements UuidInterface, TimestampableInterface
     }
 
     /**
-     * getSource
+     * getRegistry
      *
      * @return string|null
      */
-    public function getSource(): ?string
+    public function getRegistry(): ?string
     {
-        return $this->source;
+        return $this->registry;
     }
 
     /**
-     * setSource
+     * setRegistry
      *
-     * @param string|null $source
+     * @param string|null $registry
      *
      * @return $this
      */
-    public function setSource(?string $source): self
+    public function setRegistry(?string $registry): self
     {
-        $this->source = $source;
+        $this->registry = $registry;
 
         return $this;
     }
@@ -247,97 +247,25 @@ class Ip implements UuidInterface, TimestampableInterface
     }
 
     /**
-     * getNetworkName
+     * getOrganization
      *
      * @return string|null
      */
-    public function getNetworkName(): ?string
+    public function getOrganization(): ?string
     {
-        return $this->networkName;
+        return $this->organization;
     }
 
     /**
-     * setNetworkName
+     * setOrganization
      *
-     * @param string|null $networkName
+     * @param string|null $organization
      *
      * @return $this
      */
-    public function setNetworkName(?string $networkName): self
+    public function setOrganization(?string $organization): self
     {
-        $this->networkName = $networkName;
-
-        return $this;
-    }
-
-    /**
-     * getNetworkHandle
-     *
-     * @return string|null
-     */
-    public function getNetworkHandle(): ?string
-    {
-        return $this->networkHandle;
-    }
-
-    /**
-     * setNetworkHandle
-     *
-     * @param string|null $networkHandle
-     *
-     * @return $this
-     */
-    public function setNetworkHandle(?string $networkHandle): self
-    {
-        $this->networkHandle = $networkHandle;
-
-        return $this;
-    }
-
-    /**
-     * getOrganizationName
-     *
-     * @return string|null
-     */
-    public function getOrganizationName(): ?string
-    {
-        return $this->organizationName;
-    }
-
-    /**
-     * setOrganizationName
-     *
-     * @param string|null $organizationName
-     *
-     * @return $this
-     */
-    public function setOrganizationName(?string $organizationName): self
-    {
-        $this->organizationName = $organizationName;
-
-        return $this;
-    }
-
-    /**
-     * getOrganizationHandle
-     *
-     * @return string|null
-     */
-    public function getOrganizationHandle(): ?string
-    {
-        return $this->organizationHandle;
-    }
-
-    /**
-     * setOrganizationHandle
-     *
-     * @param string|null $organizationHandle
-     *
-     * @return $this
-     */
-    public function setOrganizationHandle(?string $organizationHandle): self
-    {
-        $this->organizationHandle = $organizationHandle;
+        $this->organization = $organization;
 
         return $this;
     }
@@ -345,9 +273,9 @@ class Ip implements UuidInterface, TimestampableInterface
     /**
      * getAsn
      *
-     * @return string|null
+     * @return int|null
      */
-    public function getAsn(): ?string
+    public function getAsn(): ?int
     {
         return $this->asn;
     }
@@ -355,13 +283,68 @@ class Ip implements UuidInterface, TimestampableInterface
     /**
      * setAsn
      *
-     * @param string|null $asn
+     * @param string|int|null $asn
      *
      * @return $this
      */
-    public function setAsn(?string $asn): self
+    public function setAsn($asn): self
     {
+        if (null !== $asn && !\is_int($asn)) {
+            $asn = (int) $asn;
+            if (0 === $asn) {
+                $asn = null;
+            }
+        }
+
         $this->asn = $asn;
+
+        return $this;
+    }
+
+    /**
+     * getType
+     *
+     * @return string|null
+     */
+    public function getType(): ?string
+    {
+        return $this->type;
+    }
+
+    /**
+     * setType
+     *
+     * @param string|null $type
+     *
+     * @return $this
+     */
+    public function setType(?string $type): self
+    {
+        $this->type = $type;
+
+        return $this;
+    }
+
+    /**
+     * getCategory
+     *
+     * @return string|null
+     */
+    public function getCategory(): ?string
+    {
+        return $this->category;
+    }
+
+    /**
+     * setCategory
+     *
+     * @param string|null $category
+     *
+     * @return $this
+     */
+    public function setCategory(?string $category): self
+    {
+        $this->category = $category;
 
         return $this;
     }
@@ -385,7 +368,7 @@ class Ip implements UuidInterface, TimestampableInterface
      */
     public function addDnsRecord(DnsRecord $dnsRecord): self
     {
-        $dnsRecord->setRecord($this);
+        $dnsRecord->setIp($this);
         if (!$this->dnsRecords->contains($dnsRecord)) {
             $this->dnsRecords->add($dnsRecord);
         }
@@ -424,6 +407,36 @@ class Ip implements UuidInterface, TimestampableInterface
     public function removeDnsRecord(DnsRecord $dnsRecord): self
     {
         $this->dnsRecords->removeElement($dnsRecord);
+
+        return $this;
+    }
+
+    /**
+     * getAllocatedAt
+     *
+     * @return \DateTime|null
+     */
+    public function getAllocatedAt(): ?\DateTime
+    {
+        return $this->allocatedAt;
+    }
+
+    /**
+     * setAllocatedAt
+     *
+     * @param string|\DateTime|null $allocatedAt
+     *
+     * @return $this
+     *
+     * @throws \Exception
+     */
+    public function setAllocatedAt($allocatedAt): self
+    {
+        if (null !== $allocatedAt && !$allocatedAt instanceof \DateTime) {
+            $allocatedAt = new \DateTime($allocatedAt);
+        }
+
+        $this->allocatedAt = $allocatedAt;
 
         return $this;
     }

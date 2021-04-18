@@ -12,10 +12,13 @@ use App\Service\Dig;
 use App\Service\Whois;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Cache\InvalidArgumentException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\PropertyAccess\PropertyAccessor;
 
 /**
  * Class IpImportCommand
@@ -68,7 +71,11 @@ class IpImportCommand extends Command
      */
     protected function configure(): void
     {
-        $this->addArgument('file', InputArgument::REQUIRED);
+        $this
+            ->addArgument('file', InputArgument::REQUIRED)
+            ->addOption('type', 't', InputOption::VALUE_REQUIRED)
+            ->addOption('category', 'c', InputOption::VALUE_REQUIRED)
+        ;
     }
 
     /**
@@ -79,16 +86,20 @@ class IpImportCommand extends Command
      *
      * @return int
      *
-     * @throws \Exception
+     * @throws InvalidArgumentException
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $file = $input->getArgument('file');
+        $type = $input->getOption('type');
+        $category = $input->getOption('category');
 
         if (!file_exists($file)) {
             $output->writeln(sprintf('File %s does not exists.', $file));
             return Command::FAILURE;
         }
+
+        $propertyAccessor = new PropertyAccessor();
 
         foreach (file($file) as $name) {
             $name = trim($name);
@@ -103,37 +114,43 @@ class IpImportCommand extends Command
 
             $ip = $this->ipManager->create($name);
 
-            if (!$ip->getWhoisSyncedAt() && $this->whois->sendRequest($name)) {
-                $ip->setRoute($this->whois->findValue([ 'cidr', 'route' ]));
-                $ip->setSource($this->whois->findValue([ 'source' ]));
-                $ip->setCountry($this->whois->findValue([ 'country' ]));
-                $ip->setNetworkName($this->whois->findValue([ 'netname' ]));
-                $ip->setNetworkHandle($this->whois->findValue([ 'nethandle', 'nichdl' ]));
-                $ip->setOrganizationName($this->whois->findValue([ 'orgname', 'descr' ]));
-                $ip->setOrganizationHandle($this->whois->findValue([ 'orgid', 'mntby' ]));
-                $ip->setAsn($this->whois->findValue([ 'originas', 'origin' ]));
+            $ip->setType($type);
+            $ip->setCategory($category);
+
+            if (!$ip->getWhoisSyncedAt()) {
+                $whoisData = $this->whois->findFromCymru($name, [
+                    'route' => [ 'cidr', 'route' ],
+                    'registry' => [ 'source' ],
+                    'country' => [ 'country' ],
+                    'organization' => [ 'orgname', 'descr' ],
+                    'asn' => [ 'originas', 'origin' ],
+                    'allocatedAt' => [ 'allocated' ],
+                ]);
+
+                foreach ($whoisData as $whoisName => $whoisValue) {
+                    $propertyAccessor->setValue($ip, $whoisName, $whoisValue);
+                }
+
 //                $ip->setWhoisSyncedAt(new \DateTime());
             }
 
-            if (!$ip->getDigSyncedAt() && $this->dig->sendRequest($name)) {
-                $dnsRecords = new ArrayCollection();
+            if (!$ip->getDigSyncedAt()) {
                 $dnsReverse = null;
-                foreach ($this->dig->getData() as $item) {
-                    $host = $this->hostManager->create($item['record']);
+                $dnsRecords = new ArrayCollection();
 
-                    $domainName = preg_replace(
-                        '/^(?:.+\.)?([[:alnum:]\-]+\.((?:(?:com?|net|gou?v|edu)\.)?[[:alnum:]]+))$/U',
-                        '$1',
-                        $item['record']
+                foreach ($this->dig->find($name) as $item) {
+                    $dnsRecord = $this->dnsRecordManager->sync(
+                        $ip,
+                        $item['ttl'],
+                        $item['class'],
+                        $item['type'],
+                        $item['record'],
                     );
 
-                    $domain = $this->domainManager->create($domainName);
-                    $host->setDomain($domain);
+                    if (!$dnsRecord) {
+                        continue;
+                    }
 
-                    $dnsRecord = $this->dnsRecordManager->create($host, $ip);
-                    $dnsRecord->setTtl($item['ttl']);
-                    $dnsRecord->setClass($item['class']);
-                    $dnsRecord->setType($item['type']);
                     $dnsRecords->add($dnsRecord);
 
                     if (!$dnsReverse) {

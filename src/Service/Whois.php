@@ -16,8 +16,6 @@ class Whois
     private const CACHE_TTL = 3600 * 24 * 30;
 
     private CacheInterface $cache;
-    private ?string $response = null;
-    private array $data = [];
 
     /**
      * Whois constructor.
@@ -30,75 +28,89 @@ class Whois
     }
 
     /**
-     * sendRequest
+     * findFromArin
      *
      * @param string    $name
+     * @param array     $values
      * @param int|float $cacheTtl
      *
-     * @return bool
+     * @return array
      *
      * @throws InvalidArgumentException
      */
-    public function sendRequest(string $name, int $cacheTtl = self::CACHE_TTL): bool
+    public function findFromArin(string $name, array $values = [], int $cacheTtl = self::CACHE_TTL): array
     {
-        $command = sprintf('whois %s -h whois.arin.net', escapeshellarg($name));
+        $command = sprintf('whois -h whois.arin.net %s', escapeshellarg($name));
         $hash = hash('sha1', $command);
 
-        $this->response = $this->cache->get($hash, function (ItemInterface $item) use ($command, $cacheTtl) {
+        $response = $this->cache->get($hash, function (ItemInterface $item) use ($command, $cacheTtl) {
             $item->expiresAfter($cacheTtl);
 
-            return shell_exec($command);
+            return shell_exec(sprintf('%s', $command));
         });
 
-        $this->prepareData();
-
-        return '' !== $this->response;
+        return $this->prepareResponse($response, $values);
     }
 
     /**
-     * getResponse
+     * findFromCymru
      *
-     * @return string|null
+     * @param string    $name
+     * @param array     $values
+     * @param int|float $cacheTtl
+     *
+     * @return array
+     *
+     * @throws InvalidArgumentException
      */
-    public function getResponse(): ?string
+    public function findFromCymru(string $name, array $values, int $cacheTtl = self::CACHE_TTL): array
     {
-        return $this->response;
-    }
+        $command = sprintf('whois -h whois.cymru.com %s', escapeshellarg(sprintf(' -v %s', $name)));
+        $hash = hash('sha1', $command);
 
-    /**
-     * findValue
-     *
-     * @param array $names
-     *
-     * @return string|null
-     */
-    public function findValue(array $names): ?string
-    {
-        foreach ($names as $name) {
-            foreach ($this->data as $data) {
-                if (isset($data[$name])) {
-                    return $data[$name];
-                }
+        $response = $this->cache->get($hash, function (ItemInterface $item) use ($command, $cacheTtl) {
+            $item->expiresAfter($cacheTtl);
+
+            return shell_exec(sprintf('%s', $command));
+        });
+
+        if (!$response) {
+            return [];
+        }
+
+        $data = [];
+
+        $items = array_map('trim', explode('|', explode("\n", $response)[1]));
+        $items = array_combine([ 'asn', 'ip', 'route', 'country', 'registry', 'allocatedAt', 'organization' ], $items);
+        $items['organization'] = preg_replace('/, [A-Z]{2}$/', '', $items['organization']);
+
+        foreach (array_keys($values) as $property) {
+            if (isset($items[$property])) {
+                $data[$property] = $items[$property];
             }
         }
 
-        return null;
+        return $data;
     }
 
     /**
-     * prepareData
+     * prepareResponse
+     *
+     * @param string|null $response
+     * @param array       $values
+     *
+     * @return array
      */
-    private function prepareData(): void
+    private function prepareResponse(?string $response, array $values): array
     {
-        if (!$this->response) {
-            return;
+        if (!$response) {
+            return [];
         }
 
         $section = 0;
         $items = [];
 
-        $response = $this->response;
-        $partialResponse = preg_split('/This is the RIPE Database query service/', $response);
+        $partialResponse = explode('Renvoi trouvé vers', $response);
         if ($partialResponse && isset($partialResponse[1])) {
             $response = $partialResponse[1];
         }
@@ -123,7 +135,20 @@ class Whois
             } catch (\Exception $exception) {}
         }
 
-        $this->data = array_values($items);
+        $data = [];
+        $items = array_values($items);
+
+        foreach ($values as $property => $names) {
+            foreach ($names as $name) {
+                foreach ($items as $item) {
+                    if (isset($item[$name])) {
+                        $data[$property] = $item[$name];
+                    }
+                }
+            }
+        }
+
+        return \count($values) ? $data : $items;
     }
 
     /**

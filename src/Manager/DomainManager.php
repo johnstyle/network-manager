@@ -35,10 +35,23 @@ class DomainManager
      *
      * @param string $name
      *
-     * @return Domain
+     * @return Domain|null
      */
-    public function create(string $name): Domain
+    public function sync(string $name): ?Domain
     {
+        if (
+            filter_var($name, FILTER_VALIDATE_IP)
+            || !preg_match('/^[[:alnum:]\-\.]+\.[[:alnum:]]+$/', $name)
+        ) {
+            return null;
+        }
+
+        $name = preg_replace(
+            '/^(?:.+\.)?([[:alnum:]\-]+\.((?:(?:com?|net|gou?v|edu)\.)?[[:alnum:]]+))$/U',
+            '$1',
+            $name
+        );
+
         $domain = $this->domainRepository->findOneBy([
             'name' => $name,
         ]);

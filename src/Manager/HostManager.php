@@ -35,10 +35,17 @@ class HostManager
      *
      * @param string $name
      *
-     * @return Host
+     * @return Host|null
      */
-    public function create(string $name): Host
+    public function sync(string $name): ?Host
     {
+        if (
+            !filter_var($name, FILTER_VALIDATE_IP)
+            && !preg_match('/^[[:alnum:]\-\.]+\.[[:alnum:]]+$/', $name)
+        ) {
+            return null;
+        }
+
         $host = $this->hostRepository->findOneBy([
             'name' => $name,
         ]);

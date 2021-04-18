@@ -1,8 +1,15 @@
-import Vue from 'vue';
-import Grid from './components/Grid'
-import 'normalize.css';
+import $ from 'jquery';
+import 'datatables.net';
+import 'datatables.net-dt/css/jquery.dataTables.css';
 
-new Vue({
-    el: '#app',
-    components: {Grid}
-});
+$(document).ready( function () {
+    $('table').each(function () {
+        $(this).DataTable({
+            "pageLength": $(this).data('page-length'),
+            "processing": true,
+            "serverSide": true,
+            "ajax": "/",
+            "columns": $(this).data('columns')
+        });
+    });
+} );

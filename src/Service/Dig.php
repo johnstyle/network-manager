@@ -16,7 +16,6 @@ class Dig
     private const CACHE_TTL = 3600 * 24 * 30;
 
     private CacheInterface $cache;
-    private ?string $response = null;
 
     /**
      * Dig constructor.
@@ -29,50 +28,44 @@ class Dig
     }
 
     /**
-     * sendRequest
+     * find
      *
      * @param string    $name
      * @param int|float $cacheTtl
      *
-     * @return string|null
+     * @return array
      *
      * @throws InvalidArgumentException
      */
-    public function sendRequest(string $name, int $cacheTtl = self::CACHE_TTL): ?string
+    public function find(string $name, int $cacheTtl = self::CACHE_TTL): array
     {
         $command = sprintf('dig +noall +answer -x %s', escapeshellarg($name));
         $hash = hash('sha1', $command);
 
-        $this->response = $this->cache->get($hash, function (ItemInterface $item) use ($command, $cacheTtl) {
+        $response = $this->cache->get($hash, function (ItemInterface $item) use ($command, $cacheTtl) {
             $item->expiresAfter($cacheTtl);
 
             return shell_exec($command);
         });
 
-        return $this->response;
+        return $this->prepareResponse($response);
     }
 
     /**
-     * getResponse
+     * prepareResponse
      *
-     * @return string|null
-     */
-    public function getResponse(): ?string
-    {
-        return $this->response;
-    }
-
-    /**
-     * getData
+     * @param string|null $response
      *
      * @return array
-     *
-     * @throws \Exception
      */
-    public function getData(): array
+    private function prepareResponse(?string $response): array
     {
+        if (!$response) {
+            return [];
+        }
+
         $items = [];
-        foreach (explode("\n", $this->response) as $line) {
+        foreach (explode("\n", $response) as $line) {
             $line = trim($line);
             if (!$line) {
                 continue;

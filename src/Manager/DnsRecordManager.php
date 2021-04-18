@@ -15,19 +15,28 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class DnsRecordManager
 {
+    private HostManager $hostManager;
+    private DomainManager $domainManager;
     private DnsRecordRepository $dnsRecordRepository;
     private EntityManagerInterface $entityManager;
 
     /**
      * DnsRecordManager constructor.
      *
-     * @param DnsRecordRepository   $dnsRecordRepository
+     * @param HostManager            $hostManager
+     * @param DomainManager          $domainManager
+     * @param DnsRecordRepository    $dnsRecordRepository
      * @param EntityManagerInterface $dnsRecordManager
      */
     public function __construct(
+        HostManager $hostManager,
+        DomainManager $domainManager,
         DnsRecordRepository $dnsRecordRepository,
         EntityManagerInterface $dnsRecordManager
     ) {
+
+        $this->hostManager = $hostManager;
+        $this->domainManager = $domainManager;
         $this->dnsRecordRepository = $dnsRecordRepository;
         $this->entityManager = $dnsRecordManager;
     }
@@ -35,24 +44,38 @@ class DnsRecordManager
     /**
      * create
      *
-     * @param Host $name
-     * @param Ip   $record
+     * @param Ip     $ip
+     * @param int    $ttl
+     * @param string $class
+     * @param string $type
+     * @param string $name
      *
-     * @return DnsRecord
+     * @return DnsRecord|null
      */
-    public function create(Host $name, Ip $record): DnsRecord
+    public function sync(Ip $ip, int $ttl, string $class, string $type, string $name): ?DnsRecord
     {
+        $host = $this->hostManager->sync($name);
+        if (!$host) {
+            return null;
+        }
+
+        $host->setDomain($this->domainManager->sync($name));
+
         $dnsRecord = $this->dnsRecordRepository->findOneBy([
-            'name' => $name,
-            'record' => $record,
+            'name' => $host,
+            'record' => $ip,
         ]);
 
         if (!$dnsRecord) {
             $dnsRecord = new DnsRecord();
-            $dnsRecord->setName($name);
-            $dnsRecord->setRecord($record);
+            $dnsRecord->setName($host);
+            $dnsRecord->setRecord($ip);
             $this->entityManager->persist($dnsRecord);
         }
+
+        $dnsRecord->setTtl($ttl);
+        $dnsRecord->setClass($class);
+        $dnsRecord->setType($type);
 
         return $dnsRecord;
     }
